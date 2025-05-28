@@ -1,0 +1,74 @@
+name: Pack Flet Application
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.py'
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: ~
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+        
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+        cache: "pip"
+
+    - name: Install dependencies
+      run: |
+        uv pip install -r requirements.txt --system
+
+    - name: Pack Flet Application
+      run: pyinstaller gui.py --upx-dir="D:\a\Auto_Simulated_Universe\Auto_Simulated_Universe" --icon imgs/icon_m.png --uac-admin --add-data "utils/models;utils/models" -D -y
+
+    - name: Pyinstaller Application
+      run: |
+        pyinstaller --upx-dir="D:\a\Auto_Simulated_Universe\Auto_Simulated_Universe" --uac-admin -F --i imgs/icon.png -w notif.py
+
+    - name: Move assets to dist directory
+      run: |
+        xcopy imgs dist\gui\imgs /I /E
+        xcopy actions dist\gui\actions /I /E
+        xcopy info_example.yml dist\gui
+        xcopy info_example_old.yml dist\gui
+        xcopy README.md dist\gui
+        xcopy dist\notif.exe dist\gui
+        ren dist\gui AutoSimulatedUniverse
+
+    - name: Create zip archive
+      run: |
+        $files = Get-ChildItem -Path dist\AutoSimulatedUniverse
+        Compress-Archive -Path $files.FullName -DestinationPath "AutoSimulatedUniverse_${{ github.ref_name }}.zip" -Force
+
+    - name: Create release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: ${{ github.ref_name }}
+        files: |
+          AutoSimulatedUniverse_${{ github.ref_name }}.zip
+        
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: AutoSimulatedUniverse
+        path: AutoSimulatedUniverse
